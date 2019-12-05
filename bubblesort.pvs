@@ -1,7 +1,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Grupo de Teoria da Computacao, Universidade de Brasilia
-%%% M. Ayala-Rincon, Flavio L.C. de Moura
-%%% Last modification:  April 28 2015
+%%% Fábio Oliveira Guimaães - 19/0099330
+%%% Geraldino Antonio da Silva - 13/0112267
+%%% 
+%%% Formalização da correção e da complexidade temporal
+%%% do algoritmo de ordenação bubble sort
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 bubblesort : THEORY
@@ -12,8 +14,6 @@ IMPORTING   sorting
 l,l1,l2 : VAR list[nat]
 i,j,k,n : VAR nat
 
-% This is the bubbling function that moves the greates key in
-% the n-prefix of a list l to the n-th position of the list. 
 bubbling(l, ( n : below[ l`length])) : RECURSIVE  list[nat] =
 IF n = 0 THEN l
 ELSIF car(l) > car(cdr(l)) THEN cons(car(cdr(l)), bubbling(cons(car(l),cdr(cdr(l))), n - 1))
@@ -21,22 +21,80 @@ ELSE cons(car(l), bubbling(cdr(l), n - 1))
 ENDIF
 MEASURE n   
 
-% This is the auxiliary function that calls bubbling addequately
-% starting from n. The result is that the first n+1 elements of the
-% given input list will be sorted. 
 bubblesort_aux(l, ( n : below[l`length ] )) : RECURSIVE list[nat] =
 IF n = 0 THEN l
 ELSE bubblesort_aux(bubbling(l, n), n-1)
 ENDIF
 MEASURE n
 
-% This is the main function which calls the auxiliary function
-% bubblesort_aux starting from length of the input list minus one.  
-% As result, bubblesort_aux will sort the whole input list.
 bubblesort(l) : list[nat] = 
 IF null?(l) THEN l
 ELSE bubblesort_aux(l, l`length - 1 )
 ENDIF
+
+%bubbling mantem o tamanho
+bubbling_preserves_length : LEMMA
+FORALL  (l: list[nat], n :below[l`length]) :
+  length(bubbling(l,n)) = length(l)
+
+%bubbling invariante ao tamanho
+bubbling_preserves_suffix : LEMMA  
+FORALL  (l: list[nat], n :below[l`length]) :
+ LET l1 = bubbling(l,n) IN
+   FORALL (i:below[l`length]) :  i > n IMPLIES nth(l1,i) = nth(l,i)  
+
+% bubblesort_aux mantem o tamanho
+bubblesort_aux_preserves_length : LEMMA
+FORALL  (l: list[nat], n :below[l`length]) :
+  length(bubblesort_aux(l,n)) = length(l)
+
+
+%bubbling mantem preserva a lista
+bubbling_preseves_contents :  LEMMA  
+FORALL (l: list[nat], n :below[l`length]) :
+ permutations(l, bubbling(l,n))
+
+%bubbling mantem preserva a lista a parti de um prefixo
+bubbling_preserves_prefix : LEMMA
+FORALL (l: list[nat], n :below[l`length]) :
+   FORALL (i:below[n+1]) :  EXISTS (j:below[n+1]) : nth(l,i) = nth(bubbling(l,n),j)  
+
+%bubbling mantem a ordem
+bubbling_bubbles : LEMMA
+FORALL  (l: list[nat], n :below[l`length]) :
+ LET l1 = bubbling(l,n) IN
+   FORALL (i:nat) :  i <= n IMPLIES nth(l1,i) <= nth(l1,n)  
+
+%bubblesort_aux mantem a ordem
+bubblesort_aux_preserves_suffix : LEMMA
+FORALL  (l: list[nat], n :below[l`length]) :
+ LET l1 = bubblesort_aux(l,n) IN
+   FORALL (i:below[l`length]) : i > n IMPLIES nth(l1,i) = nth(l,i)  
+
+%bubblesort_aux preserva o conteudo
+bubblesort_aux_is_permutation : LEMMA
+FORALL  (l: list[nat], n : below[l`length]) : permutations(l, bubblesort_aux(l, n))
+
+
+bubblesort_aux_preserves_prefix : CONJECTURE
+FORALL  (l: list[nat], n :below[l`length]) :
+ LET l1 = bubblesort_aux(l,n) IN
+   FORALL (i:below[n+1]) :  EXISTS (j:below[n+1]) : nth(l1,i) = nth(l,j)  
+
+bubblesort_is_permutation : LEMMA
+FORALL (l: list[nat]): permutations(l, bubblesort(l)) 
+
+
+bubblesort_aux_sorts_prefix : LEMMA
+FORALL  (l: list[nat], n : below[l`length], i : below[n]) : 
+   nth(bubblesort_aux(l, n),i) <= nth(bubblesort_aux(l, n),i+1)
+ 
+bubblesort_is_sorted  : LEMMA 
+FORALL (l: list[nat]): is_sorted?(bubblesort(l)) 
+
+bubblesort_works : LEMMA		 
+FORALL (l: list[nat]):
+     is_sorted?(bubblesort(l)) AND permutations(l, bubblesort(l)) 
 
 
 END bubblesort

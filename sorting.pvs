@@ -19,6 +19,21 @@ IMPORTING list_props[nat]
 l,l1,l2 : VAR list[nat]
 x: VAR nat
 
+%%% For all nonempty lists their length is greater than
+%%% the length of their cdr
+length_dec : LEMMA
+   FORALL (l : list[nat] | NOT null?(l)) :
+     length(l) > length(cdr(l))
+%%% Actually, for nonempty lists their lengths are
+%%% one more than the length of their cdr's
+length_cdr : LEMMA
+     FORALL (l : list[nat] | NOT null?(l)) :
+     length(l) = length(cdr(l)) + 1
+
+length_cons : LEMMA
+     FORALL (n : nat, l : list[nat]) :
+     length(l) + 1 = length(cons(n, l))
+
 elim_list((l : list[nat] | NOT null?(l)), (x : nat | member(x, l))) : RECURSIVE list[nat] =
 IF x = car(l) THEN cdr(l) 
 ELSE cons(car(l),elim_list(cdr(l),x))
@@ -192,32 +207,42 @@ FORALL (l1, l2 : list[nat], k : nat) :
      search(k, append(l1, cons(k,l2))) <= length(l1)  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% The function "occurrences" counts how many
+%%% The function occurrence counts how many
 %%% times an element x occurs into a list l.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-occurrences(l)(x): RECURSIVE nat =
+occurrence(l)(x): RECURSIVE nat =
 IF  null?(l) THEN 0
     ELSIF 
-      car(l) = x THEN 1 + occurrences(cdr(l))(x)
+      car(l) = x THEN 1 + occurrence(cdr(l))(x)
       ELSE
-	occurrences(cdr(l))(x)
+	occurrence(cdr(l))(x)
 	ENDIF
 MEASURE length(l)
 
 %% Permutations check whether two lists are permutations
 %% counting occurrences of their elements.
 permutations(l1,l2:list[nat]):bool =
-	FORALL (x:nat): occurrences(l1)(x) = occurrences(l2)(x)
+length(l1) = length(l2) AND FORALL (x:nat):
+		      occurrence(l1)(x) = occurrence(l2)(x)
 
 occurrences_of_nth_element: LEMMA
 	FORALL (l: list[nat], x:below[length(l)]):
-	      NOT null?(l) IMPLIES occurrences(l)(nth(l,x))>0
+	      NOT null?(l) IMPLIES occurrence(l)(nth(l,x))>0
+
+occurrences_of_cons : LEMMA
+	FORALL (c,x: nat, l1: list[nat]):
+	       occurrence(cons(c,l1))(x) =
+	        IF c = x THEN 
+	      	  occurrence(l1)(x)+1
+		ELSE
+		 occurrence(l1)(x)
+		ENDIF
 
 occurrences_of_app : LEMMA
         FORALL (l1,l2:list[nat], x : nat) : 
-            occurrences(append(l1, l2))(x) =
-            occurrences(l1)(x) + occurrences(l2)(x)
+            occurrence(append(l1, l2))(x) =
+            occurrence(l1)(x) + occurrence(l2)(x)
 
 cons_of_perm_is_permutation : LEMMA
         FORALL (l1, l2:list[nat], x:nat): 
@@ -225,19 +250,19 @@ cons_of_perm_is_permutation : LEMMA
 
 ocurrence_list_has_element : LEMMA
 	FORALL (l:list[nat], x:nat):
-	       occurrences(l)(x) /= 0 IMPLIES EXISTS (i: below[length(l)]): nth(l,i)=x
+	       occurrence(l)(x) /= 0 IMPLIES EXISTS (i: below[length(l)]): nth(l,i)=x
 
 no_occurrence_implies: LEMMA
 	FORALL (l:list[nat], x:nat):
-	       occurrences(l)(x) = 0 IMPLIES FORALL (i: below[length(l)]): nth(l,i)/=x
+	       occurrence(l)(x) = 0 IMPLIES FORALL (i: below[length(l)]): nth(l,i)/=x
 
 member_implies_pos_occurrences : LEMMA
      FORALL (l:list[nat], x:nat):
-      member(x,l) IMPLIES occurrences(l)(x) > 0
+      member(x,l) IMPLIES occurrence(l)(x) > 0
 
 occurrences_implies_member : LEMMA
      FORALL (l:list[nat], x:nat):
-      occurrences(l)(x)>0 IMPLIES member(x,l)
+      occurrence(l)(x)>0 IMPLIES member(x,l)
 
 %% Permutations preserve contents.
 permutations_preserve_contents : LEMMA
@@ -248,7 +273,6 @@ FORALL (l1, l2 : list[nat], i: below[length(l1)]):
 permutations_is_commutative : LEMMA
 	permutations(l1,l2) IFF permutations(l2,l1)
 
-%%%% Change to permutations_equiv
 %permutations is transitive
 permutations_is_transitive : LEMMA
 permutations(l,l1) AND permutations (l1,l2) IMPLIES permutations (l,l2)
@@ -259,12 +283,18 @@ member(x,l) IMPLIES permutations(l, cons(x, elim_list(l,x)))
 
 %Same occurrences of each element implies same length
 same_occurrences_same_length  : CONJECTURE
-    FORALL (l, l1 : list[nat]) :  (FORALL (x : nat) : occurrences(l)(x) = occurrences(l1)(x)) 
+    FORALL (l, l1 : list[nat]) :  (FORALL (x : nat) : occurrence(l)(x) = occurrence(l1)(x)) 
        IMPLIES length(l) = length(l1)   
+
+% Thus same occurrences of each element implies permutation
+
+same_occurrences_implies_permutation  : COROLLARY
+    FORALL (l, l1 : list[nat]) :  (FORALL (x : nat) : occurrence(l)(x) = occurrence(l1)(x)) 
+       IMPLIES permutations(l,l1)  
 
 %% The predicate permutations is reflexive is unnecessary; always
 %% is enough to expand "permutations". But a kind of extensional
-%% reflexivity is necessary for lists of the same length and content.
+%% reflexivity is necessary for list of the same length and content.
 permutations_is_ext_reflexive  : LEMMA
      FORALL (l : list[nat], l1: list[nat] | length(l1)=length(l) ) :   
        (FORALL (i : below[length(l)]) : nth(l,i) = nth(l1,i)) => permutations(l,l1)     
